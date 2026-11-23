@@ -1,0 +1,351 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ReadSilo — Terms &amp; Conditions</title>
+    <style>
+        :root {
+            color-scheme: light dark;
+            --bg: #FAF9F6;
+            --fg: #1C1B1F;
+            --muted: #5F5E62;
+            --accent: #1B6B52;
+            --accent-soft: rgba(27, 107, 82, 0.10);
+            --card-bg: #F3F1EC;
+            --border: rgba(28, 27, 31, 0.14);
+            --code-bg: rgba(28, 27, 31, 0.08);
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #121413;
+                --fg: #E3E3DF;
+                --muted: #A6ABA8;
+                --accent: #93D4BC;
+                --accent-soft: rgba(147, 212, 188, 0.14);
+                --card-bg: #1A1D1B;
+                --border: rgba(255, 255, 255, 0.15);
+                --code-bg: rgba(255, 255, 255, 0.09);
+            }
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html, body {
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg);
+            color: var(--fg);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            font-size: 16px;
+            line-height: 1.65;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .container {
+            max-width: 760px;
+            margin: 0 auto;
+            padding: 32px 20px 64px;
+        }
+
+        header {
+            padding-bottom: 20px;
+            margin-bottom: 24px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .brand-row {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 14px;
+        }
+
+        .brand {
+            font-size: 14px;
+            font-weight: 700;
+            letter-spacing: 0.02em;
+            text-transform: uppercase;
+            color: var(--accent);
+        }
+
+        .doc-nav {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .doc-nav a,
+        .doc-nav span.active {
+            font-size: 13px;
+            font-weight: 600;
+            padding: 5px 12px;
+            border-radius: 999px;
+            text-decoration: none;
+        }
+
+        .doc-nav span.active {
+            background-color: var(--accent);
+            color: var(--bg);
+        }
+
+        .doc-nav a {
+            border: 1px solid var(--border);
+            color: var(--fg);
+        }
+
+        h1 {
+            margin: 0 0 8px 0;
+            font-size: 28px;
+            line-height: 1.25;
+            font-weight: 700;
+            letter-spacing: -0.015em;
+        }
+
+        .meta {
+            margin: 0;
+            font-size: 14px;
+            color: var(--muted);
+        }
+
+        .summary-card {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border);
+            border-left: 4px solid var(--accent);
+            border-radius: 12px;
+            padding: 16px 18px;
+            margin-bottom: 24px;
+        }
+
+        .summary-card h2 {
+            margin-top: 0;
+            font-size: 16px;
+            color: var(--accent);
+        }
+
+        .toc {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 16px 18px;
+            margin-bottom: 28px;
+        }
+
+        .toc-title {
+            margin: 0 0 10px 0;
+            font-size: 14px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+            color: var(--muted);
+        }
+
+        .toc ul {
+            margin: 0;
+            padding-left: 18px;
+            columns: 1;
+        }
+
+        @media (min-width: 600px) {
+            .toc ul {
+                columns: 2;
+                column-gap: 24px;
+            }
+        }
+
+        .toc li {
+            margin-bottom: 6px;
+            font-size: 14px;
+            break-inside: avoid;
+        }
+
+        h2 {
+            margin: 30px 0 10px 0;
+            font-size: 20px;
+            line-height: 1.32;
+            font-weight: 700;
+            scroll-margin-top: 20px;
+        }
+
+        p {
+            margin: 0 0 14px 0;
+        }
+
+        ul {
+            margin: 0 0 16px 0;
+            padding-left: 22px;
+        }
+
+        li {
+            margin-bottom: 8px;
+        }
+
+        a {
+            color: var(--accent);
+            text-decoration: underline;
+            text-underline-offset: 3px;
+            overflow-wrap: anywhere;
+        }
+
+        code {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            font-size: 0.88em;
+            background-color: var(--code-bg);
+            padding: 2px 6px;
+            border-radius: 5px;
+            word-break: break-word;
+        }
+
+        footer {
+            margin-top: 40px;
+            padding-top: 18px;
+            border-top: 1px solid var(--border);
+            font-size: 13px;
+            color: var(--muted);
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <header>
+        <div class="brand-row">
+            <span class="brand">ReadSilo Legal</span>
+            <nav class="doc-nav" aria-label="Legal documents">
+                <a href="privacy.html">Privacy Policy</a>
+                <span class="active">Terms &amp; Conditions</span>
+            </nav>
+        </div>
+        <h1>Terms &amp; Conditions</h1>
+        <p class="meta">
+            Effective Date: November 23, 2026 &middot; Developer: Chris Chui &middot; Contact:
+            <a href="mailto:ccplayconsole@gmail.com">ccplayconsole@gmail.com</a>
+        </p>
+    </header>
+
+    <main>
+        <div class="summary-card">
+            <h2>Agreement Summary</h2>
+            <p style="margin-bottom:0;">
+                These Terms &amp; Conditions govern your use of the ReadSilo mobile and desktop applications. By installing or using ReadSilo, you agree to these Terms and our <a href="privacy.html">Privacy Policy</a>. If you do not agree, please do not use the application.
+            </p>
+        </div>
+
+        <div class="toc">
+            <p class="toc-title">Contents</p>
+            <ul>
+                <li><a href="#terms-1">1. Acceptance &amp; Eligibility</a></li>
+                <li><a href="#terms-2">2. Software License</a></li>
+                <li><a href="#terms-3">3. Free Plan &amp; ReadSilo Pro</a></li>
+                <li><a href="#terms-4">4. Your Content &amp; Backups</a></li>
+                <li><a href="#terms-5">5. Third-Party Sites &amp; Copyright</a></li>
+                <li><a href="#terms-6">6. Third-Party Services</a></li>
+                <li><a href="#terms-7">7. Language &amp; Translation Disclaimer</a></li>
+                <li><a href="#terms-8">8. Disclaimer of Warranties</a></li>
+                <li><a href="#terms-9">9. Limitation of Liability</a></li>
+                <li><a href="#terms-10">10. Updates &amp; Termination</a></li>
+                <li><a href="#terms-11">11. Governing Law &amp; Jurisdiction</a></li>
+                <li><a href="#terms-12">12. Contact Information</a></li>
+            </ul>
+        </div>
+
+        <h2 id="terms-1">1. Acceptance &amp; Eligibility</h2>
+        <p>
+            ReadSilo is developed and published by <strong>Chris Chui</strong> ("Developer", "we", or "us"). By downloading, installing, or using ReadSilo on Android, Windows, or macOS, you confirm that you have the legal capacity to enter into these Terms (or have consent from a parent or legal guardian where required by law) and agree to be bound by them.
+        </p>
+
+        <h2 id="terms-2">2. Software License</h2>
+        <p>
+            Subject to your compliance with these Terms, we grant you a personal, non-exclusive, non-transferable, non-sublicensable, revocable license to install and use ReadSilo on devices you own or control for your personal reading, archiving, and knowledge management.
+        </p>
+        <p>
+            ReadSilo operates on a local-first architecture. We do not host your saved articles, provide cloud content hosting, or maintain user accounts on our own servers.
+        </p>
+
+        <h2 id="terms-3">3. Free Plan &amp; ReadSilo Pro</h2>
+        <ul>
+            <li><strong>Free Plan:</strong> ReadSilo provides core offline saving and reading features free of charge, subject to free-tier usage limits (currently up to 30 saved items across Unread and Archived and up to 10 highlights, plus CSV and Netscape HTML bookmark export). Free-tier limits may be updated from time to time.</li>
+            <li><strong>ReadSilo Pro (One-Time Purchase):</strong> Upgrading to ReadSilo Pro unlocks unlimited saved items, unlimited highlights, full-text search, AMOLED theme, full <code>.zip</code> backup and Markdown export, optional Google Drive AppData sync, and Desktop Companion access.</li>
+            <li><strong>Payments &amp; Refunds:</strong> Android purchases are processed through Google Play Billing and are governed by Google Play's terms and refund policies. Standalone Desktop web license keys (where offered) are processed via Polar or Lemon Squeezy and are subject to the merchant of record's checkout and refund terms.</li>
+            <li><strong>Desktop Companion Access:</strong> An active Android Pro purchase includes companion access on Windows and macOS via your connected Google Drive sync account or offline QR/PIN authorization (subject to a limit of 5 offline Desktop device authorizations per Android device). You may not resell, redistribute, or share offline unlock PINs, signed entitlements, or license keys outside your own personal devices.</li>
+            <li><strong>Revocation &amp; Verification:</strong> If a purchase or license key is refunded, charged back, or revoked, ReadSilo may automatically deactivate Pro features (including synced entitlement flags) on associated devices.</li>
+        </ul>
+
+        <h2 id="terms-4">4. Your Content &amp; Backups</h2>
+        <p>
+            You retain full ownership of all personal notes, highlights, tags, and collections you create in ReadSilo.
+        </p>
+        <p>
+            Because your library resides locally on your device (and optionally inside your personal Google Drive <code>appDataFolder</code>), <strong>you are solely responsible for maintaining backups</strong> of your data (such as creating local <code>.zip</code> backups or exports). We are not responsible for any loss of articles, notes, or highlights caused by device damage, uninstallation, operating system resets, or third-party cloud service interruptions.
+        </p>
+
+        <h2 id="terms-5">5. Third-Party Sites &amp; Copyright</h2>
+        <p>ReadSilo acts strictly as a personal client tool operating at your instruction. You agree that:</p>
+        <ul>
+            <li>You will use ReadSilo only in compliance with applicable copyright laws and the terms of service of the websites you choose to save.</li>
+            <li>When using Interactive Capture to access member or subscription websites with your own credentials, you are accessing content solely for your personal offline reading and only where you already hold valid permission to view it.</li>
+            <li>You will not use ReadSilo to republish, redistribute, commercially exploit, or perform automated bulk scraping of third-party copyrighted content.</li>
+            <li>You will not reverse engineer, decompile, tamper with, or attempt to bypass cryptographic entitlement checks, license validation, or platform security controls except to the extent expressly permitted by mandatory law.</li>
+        </ul>
+
+        <h2 id="terms-6">6. Third-Party Services</h2>
+        <p>
+            Certain optional or platform-level features rely on third-party services, including Google Play Billing, Google Play Services Code Scanner, Google Drive API (<code>appDataFolder</code>), Google Firebase (Android diagnostics and remote configuration), Polar or Lemon Squeezy (Desktop web license verification), YouTube oEmbed metadata services, and GitHub Releases (Desktop Chromium runtime download).
+        </p>
+        <p>
+            We do not control third-party services or external publishers, and we cannot guarantee that every web page, embedded video, anti-bot challenge, or third-party integration will remain compatible or accessible indefinitely.
+        </p>
+
+        <h2 id="terms-7">7. Language &amp; Translation Disclaimer</h2>
+        <p>
+            <strong>English is the primary and authoritative language</strong> of ReadSilo, this Privacy Policy, and these Terms &amp; Conditions. Localized interface languages (such as Traditional Chinese for Hong Kong and Taiwan) may include AI-assisted translations provided solely for user convenience and may contain inaccuracies or nuances that differ from the original English text. In the event of any ambiguity, conflict, or discrepancy between a translated version and the English version, the English version shall govern and prevail.
+        </p>
+
+        <h2 id="terms-8">8. Disclaimer of Warranties</h2>
+        <p>
+            TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, READSILO IS PROVIDED ON AN <strong>"AS IS"</strong> AND <strong>"AS AVAILABLE"</strong> BASIS WITHOUT WARRANTIES OF ANY KIND, WHETHER EXPRESS, IMPLIED, OR STATUTORY, INCLUDING IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, TITLE, AND NON-INFRINGEMENT. WE DO NOT WARRANT THAT THE APPLICATION WILL BE UNINTERRUPTED, ERROR-FREE, OR ABLE TO EXTRACT OR PRESERVE CONTENT FROM ALL THIRD-PARTY WEBSITES.
+        </p>
+
+        <h2 id="terms-9">9. Limitation of Liability</h2>
+        <p>
+            TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, IN NO EVENT SHALL CHRIS CHUI BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, OR PUNITIVE DAMAGES, OR ANY LOSS OF DATA, PROFITS, GOODWILL, OR BUSINESS INTERRUPTION ARISING OUT OF OR RELATING TO YOUR USE OF OR INABILITY TO USE READSILO, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.
+        </p>
+        <p>
+            TO THE EXTENT LIABILITY CANNOT BE LAWFULLY EXCLUDED, OUR TOTAL AGGREGATE LIABILITY FOR ALL CLAIMS ARISING OUT OF OR RELATING TO READSILO SHALL NOT EXCEED THE TOTAL AMOUNT YOU ACTUALLY PAID FOR READSILO PRO IN THE TWELVE (12) MONTHS PRECEDING THE CLAIM (OR HKD $100 IF YOU USE ONLY THE FREE PLAN). NOTHING IN THESE TERMS EXCLUDES OR LIMITS LIABILITY FOR DEATH OR PERSONAL INJURY CAUSED BY NEGLIGENCE, FRAUD, OR ANY LIABILITY THAT CANNOT BE EXCLUDED UNDER APPLICABLE LAW.
+        </p>
+
+        <h2 id="terms-10">10. Updates &amp; Termination</h2>
+        <p>
+            We may release updates, modify features, or revise these Terms from time to time. Updated Terms take effect upon publication in the app or on our official legal page, and your continued use of ReadSilo after any update constitutes acceptance of the revised Terms.
+        </p>
+        <p>
+            You may terminate this agreement at any time by stopping use of ReadSilo, uninstalling it from your devices, and deleting any local or Google Drive sync data. Your rights under Section 2 terminate immediately if you materially breach these Terms.
+        </p>
+
+        <h2 id="terms-11">11. Governing Law &amp; Jurisdiction</h2>
+        <p>
+            These Terms &amp; Conditions and any dispute or claim arising out of or in connection with them or your use of ReadSilo shall be governed by and construed in accordance with the laws of the <strong>Hong Kong Special Administrative Region ("Hong Kong SAR")</strong>, without regard to conflict-of-law principles.
+        </p>
+        <p>
+            You and the Developer agree to submit to the non-exclusive jurisdiction of the courts of Hong Kong SAR, provided that nothing in these Terms limits mandatory consumer protection rights available to you under the laws of your country or region of residence.
+        </p>
+
+        <h2 id="terms-12">12. Contact Information</h2>
+        <p>
+            If you have any questions regarding these Terms &amp; Conditions or ReadSilo, please contact:<br />
+            <strong>Developer:</strong> Chris Chui<br />
+            <strong>Email:</strong> <a href="mailto:ccplayconsole@gmail.com">ccplayconsole@gmail.com</a>
+        </p>
+    </main>
+
+    <footer>
+        &copy; 2026 Chris Chui. ReadSilo. All rights reserved. &middot;
+        <a href="privacy.html">Read Privacy Policy</a>
+    </footer>
+</div>
+</body>
+</html>

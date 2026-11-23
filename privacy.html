@@ -1,0 +1,346 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ReadSilo — Privacy Policy</title>
+    <style>
+        :root {
+            color-scheme: light dark;
+            --bg: #FAF9F6;
+            --fg: #1C1B1F;
+            --muted: #5F5E62;
+            --accent: #1B6B52;
+            --accent-soft: rgba(27, 107, 82, 0.10);
+            --card-bg: #F3F1EC;
+            --border: rgba(28, 27, 31, 0.14);
+            --code-bg: rgba(28, 27, 31, 0.08);
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #121413;
+                --fg: #E3E3DF;
+                --muted: #A6ABA8;
+                --accent: #93D4BC;
+                --accent-soft: rgba(147, 212, 188, 0.14);
+                --card-bg: #1A1D1B;
+                --border: rgba(255, 255, 255, 0.15);
+                --code-bg: rgba(255, 255, 255, 0.09);
+            }
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html, body {
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg);
+            color: var(--fg);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            font-size: 16px;
+            line-height: 1.65;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .container {
+            max-width: 760px;
+            margin: 0 auto;
+            padding: 32px 20px 64px;
+        }
+
+        header {
+            padding-bottom: 20px;
+            margin-bottom: 24px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .brand-row {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 14px;
+        }
+
+        .brand {
+            font-size: 14px;
+            font-weight: 700;
+            letter-spacing: 0.02em;
+            text-transform: uppercase;
+            color: var(--accent);
+        }
+
+        .doc-nav {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .doc-nav a,
+        .doc-nav span.active {
+            font-size: 13px;
+            font-weight: 600;
+            padding: 5px 12px;
+            border-radius: 999px;
+            text-decoration: none;
+        }
+
+        .doc-nav span.active {
+            background-color: var(--accent);
+            color: var(--bg);
+        }
+
+        .doc-nav a {
+            border: 1px solid var(--border);
+            color: var(--fg);
+        }
+
+        h1 {
+            margin: 0 0 8px 0;
+            font-size: 28px;
+            line-height: 1.25;
+            font-weight: 700;
+            letter-spacing: -0.015em;
+        }
+
+        .meta {
+            margin: 0;
+            font-size: 14px;
+            color: var(--muted);
+        }
+
+        .summary-card {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border);
+            border-left: 4px solid var(--accent);
+            border-radius: 12px;
+            padding: 16px 18px;
+            margin-bottom: 24px;
+        }
+
+        .summary-card h2 {
+            margin-top: 0;
+            font-size: 16px;
+            color: var(--accent);
+        }
+
+        .toc {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 16px 18px;
+            margin-bottom: 28px;
+        }
+
+        .toc-title {
+            margin: 0 0 10px 0;
+            font-size: 14px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+            color: var(--muted);
+        }
+
+        .toc ul {
+            margin: 0;
+            padding-left: 18px;
+            columns: 1;
+        }
+
+        @media (min-width: 600px) {
+            .toc ul {
+                columns: 2;
+                column-gap: 24px;
+            }
+        }
+
+        .toc li {
+            margin-bottom: 6px;
+            font-size: 14px;
+            break-inside: avoid;
+        }
+
+        h2 {
+            margin: 30px 0 10px 0;
+            font-size: 20px;
+            line-height: 1.32;
+            font-weight: 700;
+            scroll-margin-top: 20px;
+        }
+
+        h3 {
+            margin: 18px 0 8px 0;
+            font-size: 16px;
+            line-height: 1.38;
+            font-weight: 600;
+        }
+
+        p {
+            margin: 0 0 14px 0;
+        }
+
+        ul {
+            margin: 0 0 16px 0;
+            padding-left: 22px;
+        }
+
+        li {
+            margin-bottom: 8px;
+        }
+
+        a {
+            color: var(--accent);
+            text-decoration: underline;
+            text-underline-offset: 3px;
+            overflow-wrap: anywhere;
+        }
+
+        code {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            font-size: 0.88em;
+            background-color: var(--code-bg);
+            padding: 2px 6px;
+            border-radius: 5px;
+            word-break: break-word;
+        }
+
+        footer {
+            margin-top: 40px;
+            padding-top: 18px;
+            border-top: 1px solid var(--border);
+            font-size: 13px;
+            color: var(--muted);
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <header>
+        <div class="brand-row">
+            <span class="brand">ReadSilo Legal</span>
+            <nav class="doc-nav" aria-label="Legal documents">
+                <span class="active">Privacy Policy</span>
+                <a href="terms.html">Terms &amp; Conditions</a>
+            </nav>
+        </div>
+        <h1>Privacy Policy</h1>
+        <p class="meta">
+            Effective Date: November 23, 2026 &middot; Developer: Chris Chui &middot; Contact:
+            <a href="mailto:ccplayconsole@gmail.com">ccplayconsole@gmail.com</a>
+        </p>
+    </header>
+
+    <main>
+        <div class="summary-card">
+            <h2>Privacy at a Glance</h2>
+            <p>
+                ReadSilo is a <strong>local-first</strong> read-it-later and knowledge management application for Android, Windows, and macOS.
+                We do not require user accounts, we do not operate developer servers to host your library, we do not display advertisements, and we never sell or rent your personal data.
+            </p>
+            <p style="margin-bottom:0;">
+                Your saved articles, PDFs, highlights, notes, and tags stay on your device unless you explicitly choose to enable optional Google Drive synchronization inside your own private Google account.
+            </p>
+        </div>
+
+        <div class="toc">
+            <p class="toc-title">Contents</p>
+            <ul>
+                <li><a href="#section-1">1. Data Stored Locally on Your Device</a></li>
+                <li><a href="#section-2">2. Direct Web Fetching &amp; Desktop Services</a></li>
+                <li><a href="#section-3">3. Optional Google Drive AppData Sync</a></li>
+                <li><a href="#section-4">4. Clipboard, Permissions &amp; QR Scanning</a></li>
+                <li><a href="#section-5">5. Purchases, Licensing &amp; Cross-Platform Unlock</a></li>
+                <li><a href="#section-6">6. Optional Diagnostics &amp; Remote Configuration</a></li>
+                <li><a href="#section-7">7. Data Sharing, Retention &amp; Your Rights</a></li>
+                <li><a href="#section-8">8. Children's Privacy</a></li>
+                <li><a href="#section-9">9. Changes, Language &amp; Contact</a></li>
+            </ul>
+        </div>
+
+        <h2 id="section-1">1. Data Stored Locally on Your Device</h2>
+        <p>When you use ReadSilo, the following information is created and stored locally on your device:</p>
+        <ul>
+            <li><strong>Your Reading Library:</strong> Saved URLs, extracted article HTML and plain text, downloaded images, PDF files, YouTube video metadata and notes, highlights, personal notes, custom tags, reading progress, and website source display names.</li>
+            <li><strong>Preferences &amp; Display Settings:</strong> Theme palette, dark mode, language selection, typography preferences, image download policy, and synchronization preferences.</li>
+            <li><strong>Website Session Cookies (Interactive Capture):</strong> If you sign in to a member or paywalled website using ReadSilo's Interactive Capture view to save an article you are authorized to access, that site's session cookies are stored strictly in your device's local WebView/browser cookie storage (and a local list of domain names with active cookies). You can review and clear cookies per domain or clear all cookies at any time in <strong>Settings &rarr; Saved Website Sessions</strong>.</li>
+            <li><strong>Local Entitlement &amp; Auth Records:</strong> On Android, cached purchase status and offline Desktop authorization grant counters are stored using Android Keystore-backed <code>EncryptedSharedPreferences</code>. On Desktop, license records and optional Google Drive OAuth refresh tokens are stored locally using <code>AES-256-GCM</code> encryption derived from local machine parameters.</li>
+            <li><strong>In-Memory Diagnostic Logs:</strong> ReadSilo maintains a temporary in-memory diagnostic log buffer (with URLs and email addresses redacted) to help troubleshoot errors. These logs never leave your device unless you manually tap <strong>Copy Diagnostic Logs</strong> and choose to share them.</li>
+        </ul>
+
+        <h2 id="section-2">2. Direct Web Fetching &amp; Desktop Services</h2>
+        <ul>
+            <li><strong>Fetching Web Pages &amp; Media:</strong> When you save a link, your device connects directly to the publisher's server (or YouTube's public oEmbed endpoint <code>youtube.com/oembed</code> and <code>i.ytimg.com</code> thumbnails for YouTube links) to retrieve the content you requested. ReadSilo does not proxy your web requests through developer-owned servers. Any third-party website you fetch is governed by that website's own privacy policy.</li>
+            <li><strong>Desktop Local Browser Clipper:</strong> On Windows and macOS, ReadSilo runs a local loopback HTTP server strictly bound to <code>127.0.0.1:47832</code> so an optional browser extension can send pages directly into your local ReadSilo app. It rejects ordinary web origins and does not expose any data outside your computer.</li>
+            <li><strong>Desktop Chromium Runtime:</strong> On Desktop, ReadSilo uses the Chromium Embedded Framework (<code>KCEF</code>) to render saved articles offline. On first launch or runtime update, the desktop app downloads the required KCEF runtime bundle directly from GitHub Releases into your local application directory.</li>
+            <li><strong>Article Extractor Script Updates:</strong> ReadSilo may periodically check a static update manifest over HTTPS to download SHA-256-verified updates to its local article extraction script (<code>defuddle.js</code>). No personal data, reading history, or saved URLs are sent during this check.</li>
+        </ul>
+
+        <h2 id="section-3">3. Optional Google Drive AppData Sync</h2>
+        <p>Google Drive synchronization is completely optional and disabled by default. If you choose to connect Google Drive:</p>
+        <ul>
+            <li><strong>Limited Scope:</strong> ReadSilo requests only the <code>https://www.googleapis.com/auth/drive.appdata</code> scope. This grants access strictly to a hidden, application-specific folder (<code>appDataFolder</code>) inside your personal Google Drive. ReadSilo cannot view, modify, or delete your personal Drive files, folders, or documents.</li>
+            <li><strong>Synced Data:</strong> Synced files consist of your article metadata, HTML content, packaged article images, tags, website source names, highlights, notes, and a cryptographically signed Pro entitlement marker (<code>pro_entitlement.json</code> containing your normalized Google account email address). Your email address is also stored locally in app preferences to display your connected sync account.</li>
+            <li><strong>OAuth Handling:</strong> On Android, sign-in uses Google Play Services Identity Authorization. On Desktop, sign-in uses Google OAuth 2.0 Authorization Code flow with PKCE via a temporary local loopback listener (<code>127.0.0.1</code>).</li>
+            <li><strong>Control &amp; Removal:</strong> You may disconnect Google Drive sync or delete all ReadSilo cloud sync files from your Google Drive <code>appDataFolder</code> at any time under <strong>Settings &rarr; Cloud Sync</strong>.</li>
+        </ul>
+
+        <h2 id="section-4">4. Clipboard, Permissions &amp; QR Scanning</h2>
+        <ul>
+            <li><strong>Clipboard Quick-Save Detection:</strong> On Android 12 and newer, ReadSilo checks only clipboard metadata (MIME type, timestamp, and Android's on-device URL classification score) without reading your clipboard text. ReadSilo reads the clipboard URL only if you tap to save the detected link (or on Desktop and older OS versions, inspects clipboard text locally solely to check for an <code>http://</code> or <code>https://</code> link). Clipboard contents are never transmitted to developer servers.</li>
+            <li><strong>Minimal Android Permissions:</strong> ReadSilo requests only <code>INTERNET</code> and <code>ACCESS_NETWORK_STATE</code> permissions. It does <strong>not</strong> request location, contacts, microphone, or <code>CAMERA</code> permissions.</li>
+            <li><strong>Camera-Free QR Scanning:</strong> When authorizing a Desktop companion via QR code on Android, ReadSilo delegates scanning to Google Play Services Code Scanner (<code>barcode_ui</code>), which returns only the scanned challenge payload without requiring camera permission in ReadSilo.</li>
+            <li><strong>File Access:</strong> Importing bookmarks or exporting/backing up files uses your operating system's native file picker so ReadSilo accesses only the specific files or folders you select.</li>
+        </ul>
+
+        <h2 id="section-5">5. Purchases, Licensing &amp; Cross-Platform Unlock</h2>
+        <ul>
+            <li><strong>Google Play Billing (Android):</strong> In-app purchases for ReadSilo Pro are processed securely by Google Play. We do not collect, process, or store your payment card or billing details. Google's processing is governed by the Google Privacy Policy (<code>https://policies.google.com/privacy</code>).</li>
+            <li><strong>Desktop Companion Unlock:</strong> Android Pro users may unlock ReadSilo Pro on Windows/macOS either automatically via signed Google Drive entitlement or offline via QR challenge/PIN. For offline QR challenges, Desktop generates a temporary challenge code and a non-reversible truncated SHA-256 hash derived locally from OS/user environment properties as a device fingerprint, which is verified locally without contacting any server.</li>
+            <li><strong>Desktop Standalone Web Licenses:</strong> If you activate a standalone Desktop license key, ReadSilo communicates directly with our merchant-of-record licensing provider—<strong>Polar</strong> (<code>https://api.polar.sh</code>, privacy policy at <code>https://polar.sh/legal/privacy</code>) or <strong>Lemon Squeezy</strong> (<code>https://api.lemonsqueezy.com</code>, privacy policy at <code>https://www.lemonsqueezy.com/privacy</code>)—during activation and periodic revalidation (approximately every 7 days). Only your license key, activation identifier, and a workstation label (<code>ReadSilo (&lt;OS&gt; - &lt;hostname&gt;)</code>) are transmitted for license verification.</li>
+        </ul>
+
+        <h2 id="section-6">6. Optional Diagnostics &amp; Remote Configuration</h2>
+        <p>To keep ReadSilo reliable while respecting your privacy:</p>
+        <ul>
+            <li><strong>Android Telemetry (Firebase):</strong> The Android app integrates Google Firebase Analytics, Firebase Crashlytics, and Firebase Remote Config (used to fetch non-personal app settings such as free-tier item limits).</li>
+            <li><strong>Strict Content &amp; PII Exclusion:</strong> ReadSilo enforces a strict allowlist of coarse technical event parameters (such as feature usage counts, content type, theme, language, or generic error categories). Saved URLs, article titles, article bodies, highlights, personal notes, search queries, filenames, and email addresses are explicitly blocked or redacted and are <strong>never</strong> collected by Analytics or Crashlytics.</li>
+            <li><strong>Desktop Telemetry:</strong> The Windows and macOS versions of ReadSilo do not transmit analytics or crash reports to Firebase or any remote telemetry server.</li>
+            <li><strong>Opt-Out Control:</strong> You can disable <strong>Anonymous Crash &amp; Usage Diagnostics</strong> at any time in <strong>Settings &rarr; Privacy, Terms &amp; Diagnostics</strong>. Turning this off disables Firebase Analytics and Crashlytics collection.</li>
+        </ul>
+
+        <h2 id="section-7">7. Data Sharing, Retention &amp; Your Rights</h2>
+        <p>We do not sell personal data or share your reading library with advertisers or data brokers. Third-party service providers receive data only when required for features you invoke (Google Play for Android purchases, Google Drive API if you enable sync, Firebase on Android unless opted out, and Polar or Lemon Squeezy if you activate a Desktop license key).</p>
+        <ul>
+            <li><strong>Retention:</strong> Local data stays on your device until you delete items, clear cookies/cache, or uninstall ReadSilo. Synced Drive data stays in your personal Google Drive until you delete it via Settings or your Google account.</li>
+            <li><strong>Your Rights (including HK PDPO, GDPR, and CCPA):</strong> You have full control to access, edit, export (via CSV, Netscape HTML, Markdown, or full ZIP backup), and delete your data directly within the app. If you have questions or privacy requests, please email us at <a href="mailto:ccplayconsole@gmail.com">ccplayconsole@gmail.com</a>.</li>
+        </ul>
+
+        <h2 id="section-8">8. Children's Privacy</h2>
+        <p>
+            ReadSilo is not directed to children under the age of 13 (or the applicable minimum age in your jurisdiction), and we do not knowingly collect personal information from children. If you believe a child has provided personal information in connection with ReadSilo, please contact <a href="mailto:ccplayconsole@gmail.com">ccplayconsole@gmail.com</a> so we can assist promptly.
+        </p>
+
+        <h2 id="section-9">9. Changes, Language &amp; Contact</h2>
+        <p>
+            We may update this Privacy Policy from time to time to reflect app improvements or legal requirements. Any updates will be indicated by a revised Effective Date at the top of this page.
+        </p>
+        <p>
+            English is the primary language of this Privacy Policy. Any localized translations in the app are provided for convenience; in the event of any inconsistency, the English version prevails.
+        </p>
+        <p>
+            <strong>Developer:</strong> Chris Chui<br />
+            <strong>Email:</strong> <a href="mailto:ccplayconsole@gmail.com">ccplayconsole@gmail.com</a>
+        </p>
+    </main>
+
+    <footer>
+        &copy; 2026 Chris Chui. ReadSilo. All rights reserved. &middot;
+        <a href="terms.html">Read Terms &amp; Conditions</a>
+    </footer>
+</div>
+</body>
+</html>
