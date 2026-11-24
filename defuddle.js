@@ -15,6 +15,14 @@
     var MAX_REVEAL_CLICKS = 6;
     var REVEAL_IDLE_MS = 300;
     var REVEAL_MAX_WAIT_MS = 1800;
+    var cachedInertDoc = null;
+
+    function getInertHtmlDocument() {
+        if (!cachedInertDoc && document.implementation && document.implementation.createHTMLDocument) {
+            cachedInertDoc = document.implementation.createHTMLDocument("");
+        }
+        return cachedInertDoc || document;
+    }
 
     function getMetaContent(selectors) {
         for (var i = 0; i < selectors.length; i++) {
@@ -46,6 +54,23 @@
         }
     }
 
+    function stripMarkupFromText(raw) {
+        var trimmed = String(raw || "").trim();
+        if (!trimmed) return "";
+        if (!/[<&]/.test(trimmed)) {
+            return trimmed.replace(/\s+/g, " ").trim();
+        }
+        var cleaned = trimmed.replace(/<[a-zA-Z][^>]*$/, " ");
+        var doc = getInertHtmlDocument();
+        var div = doc.createElement("div");
+        div.innerHTML = cleaned;
+        var blocks = div.querySelectorAll("p, div, li, h1, h2, h3, h4, h5, h6, blockquote, pre, tr, br");
+        for (var i = 0; i < blocks.length; i++) {
+            blocks[i].appendChild(doc.createTextNode(" "));
+        }
+        return (div.textContent || "").replace(/\s+/g, " ").trim();
+    }
+
     function countWords(text) {
         if (!text) return 0;
         var cjk = 0;
@@ -72,13 +97,41 @@
         return cjk + words;
     }
 
+    // Balance CJK character density (~2 CJK chars ≈ 1 English word) for paywall preview length thresholds.
+    function countEffectiveWords(text) {
+        if (!text) return 0;
+        var cjk = 0;
+        var words = 0;
+        var inWord = false;
+        for (var i = 0; i < text.length; i++) {
+            var code = text.charCodeAt(i);
+            var isCjk =
+                (code >= 0x3040 && code <= 0x30ff) ||
+                (code >= 0x3400 && code <= 0x4dbf) ||
+                (code >= 0x4e00 && code <= 0x9fff) ||
+                (code >= 0xf900 && code <= 0xfaff) ||
+                (code >= 0xac00 && code <= 0xd7af);
+            if (isCjk) {
+                cjk++;
+                inWord = false;
+            } else if (code <= 32) {
+                inWord = false;
+            } else if (!inWord) {
+                words++;
+                inWord = true;
+            }
+        }
+        return Math.ceil(cjk / 2) + words;
+    }
+
     function htmlToPlainText(html) {
         if (!html) return "";
-        var div = document.createElement("div");
+        var doc = getInertHtmlDocument();
+        var div = doc.createElement("div");
         div.innerHTML = html;
         var blocks = div.querySelectorAll("p, div, li, h1, h2, h3, h4, h5, h6, blockquote, pre, tr, br");
         for (var i = 0; i < blocks.length; i++) {
-            blocks[i].appendChild(document.createTextNode(" "));
+            blocks[i].appendChild(doc.createTextNode(" "));
         }
         return (div.textContent || "").replace(/\s+/g, " ").trim();
     }
@@ -258,6 +311,610 @@
         );
     }
 
+    function isNonContentEmbedContainer(el) {
+        if (!el || !el.closest) return false;
+        if (el.closest("pre, code, noscript, template, nav, footer, aside, [role='navigation'], [role='banner'], [role='contentinfo'], [role='dialog'], [aria-modal='true']")) {
+            return true;
+        }
+        var headerEl = el.closest("header");
+        if (headerEl && !headerEl.closest("article, main")) {
+            return true;
+        }
+        return !!el.closest(".sidebar, #sidebar, .related, .related-posts, .yarpp-related, .jp-relatedposts");
+    }
+
+    function isElementDisplayNone(el) {
+        if (!el) return true;
+        if (el.hasAttribute && el.hasAttribute("hidden")) return true;
+        if (!window.getComputedStyle) return false;
+        try {
+            var style = window.getComputedStyle(el);
+            return style && style.display === "none";
+        } catch (_e) {
+            return false;
+        }
+    }
+
+    function extractYouTubeIdFromUrl(rawUrl) {
+        if (!rawUrl) return "";
+        try {
+            var u = new URL(rawUrl, location.href);
+            var h = (u.hostname || "").toLowerCase().replace(/^www\./, "");
+            var segs = (u.pathname || "").split("/").filter(function (p) { return p.length > 0; });
+            var candidate = "";
+            if (h === "youtu.be") {
+                candidate = segs[0] || "";
+            } else if (h === "youtube.com" || h === "m.youtube.com" || h === "music.youtube.com" || h === "youtube-nocookie.com") {
+                if (segs.length >= 2 && /^(?:embed|shorts|live|v)$/i.test(segs[0])) {
+                    if (!(/^embed$/i.test(segs[0]) && /^videoseries$/i.test(segs[1]))) {
+                        candidate = segs[1];
+                    }
+                } else {
+                    candidate = u.searchParams.get("v") || "";
+                }
+            }
+            if (candidate && /^[A-Za-z0-9_-]{6,20}$/.test(candidate) && !/^videoseries$/i.test(candidate)) {
+                return candidate;
+            }
+        } catch (_e) {}
+        return "";
+    }
+
+    function collectPageVideoHints() {
+        var hints = {
+            videoObjects: [],
+            articleYouTubeIds: [],
+            nextDataText: ""
+        };
+
+        var scripts = document.querySelectorAll('script[type="application/ld+json"]');
+        for (var i = 0; i < scripts.length; i++) {
+            try {
+                var parsed = JSON.parse(scripts[i].textContent || "");
+                var nodes = Array.isArray(parsed) ? parsed : (parsed["@graph"] || [parsed]);
+                for (var j = 0; j < nodes.length; j++) {
+                    var node = nodes[j];
+                    if (!node || typeof node !== "object") continue;
+                    if (node["@type"] === "VideoObject" || (Array.isArray(node["@type"]) && node["@type"].indexOf("VideoObject") !== -1)) {
+                        var thumb = "";
+                        if (typeof node.thumbnailUrl === "string") {
+                            thumb = node.thumbnailUrl;
+                        } else if (Array.isArray(node.thumbnailUrl) && node.thumbnailUrl[0]) {
+                            thumb = String(node.thumbnailUrl[0]);
+                        }
+                        hints.videoObjects.push({
+                            name: typeof node.name === "string" ? node.name.trim() : "",
+                            embedUrl: typeof node.embedUrl === "string" ? node.embedUrl.trim() : "",
+                            contentUrl: typeof node.contentUrl === "string" ? node.contentUrl.trim() : "",
+                            thumbnailUrl: resolveAbsoluteUrl(thumb)
+                        });
+                    }
+                }
+            } catch (_e) {}
+        }
+
+        var nextScript = document.getElementById("__NEXT_DATA__");
+        if (nextScript && nextScript.textContent) {
+            hints.nextDataText = nextScript.textContent;
+        }
+
+        var scope = document.querySelector("article, main, [role='main']") || document.body;
+        if (scope) {
+            var links = scope.querySelectorAll('a[href*="youtu.be/"], a[href*="youtube.com/"]');
+            for (var k = 0; k < links.length; k++) {
+                if (isNonContentEmbedContainer(links[k])) continue;
+                var ytId = extractYouTubeIdFromUrl(links[k].getAttribute("href") || "");
+                if (ytId && hints.articleYouTubeIds.indexOf(ytId) === -1) {
+                    hints.articleYouTubeIds.push(ytId);
+                }
+            }
+        }
+
+        return hints;
+    }
+
+    function resolveVoxVolumeVideoInfo(urlObj, rawTitle, pageHints) {
+        var pathParts = (urlObj.pathname || "").split("/").filter(function (p) { return p.length > 0; });
+        var embedIdx = pathParts.indexOf("embed");
+        var uuid = (embedIdx !== -1 && pathParts[embedIdx + 1]) ? pathParts[embedIdx + 1] : (pathParts[pathParts.length - 1] || "");
+        if (!uuid) return null;
+
+        var playerType = (urlObj.searchParams.get("player_type") || "").toLowerCase();
+        var cleanEmbedUrl = "https://" + urlObj.hostname + "/embed/" + uuid;
+        var title = String(rawTitle || "").trim();
+        if (!title || /^video$/i.test(title)) {
+            title = "";
+        }
+
+        var jsonLdTitle = "";
+        var jsonLdThumb = "";
+        var resolvedYtId = "";
+
+        if (pageHints && pageHints.videoObjects) {
+            for (var i = 0; i < pageHints.videoObjects.length; i++) {
+                var vo = pageHints.videoObjects[i];
+                if (!jsonLdTitle && vo.name) jsonLdTitle = vo.name;
+                if (!jsonLdThumb && vo.thumbnailUrl) jsonLdThumb = vo.thumbnailUrl;
+                var fromEmbed = extractYouTubeIdFromUrl(vo.embedUrl) || extractYouTubeIdFromUrl(vo.contentUrl);
+                if (fromEmbed && !resolvedYtId) {
+                    resolvedYtId = fromEmbed;
+                }
+            }
+        }
+
+        if (!resolvedYtId && pageHints && pageHints.nextDataText) {
+            var uuidPos = pageHints.nextDataText.indexOf(uuid);
+            if (uuidPos !== -1) {
+                var windowSlice = pageHints.nextDataText.slice(Math.max(0, uuidPos - 400), uuidPos + 1400);
+                var ytMatch = windowSlice.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/)|"youtubeId"\s*:\s*"|"providerId"\s*:\s*")([A-Za-z0-9_-]{11})/);
+                if (ytMatch && ytMatch[1]) {
+                    resolvedYtId = ytMatch[1];
+                }
+            }
+        }
+
+        if (!resolvedYtId && playerType === "youtube" && pageHints && pageHints.articleYouTubeIds && pageHints.articleYouTubeIds.length === 1) {
+            resolvedYtId = pageHints.articleYouTubeIds[0];
+        }
+
+        var fallbackHeadline = resolvePreferredHeadlineTitle("", "", "") || (document.title || "").trim();
+        var effectiveTitle = title || jsonLdTitle || fallbackHeadline || "Embedded Video";
+
+        if (resolvedYtId) {
+            return {
+                watchUrl: "https://www.youtube.com/watch?v=" + resolvedYtId,
+                videoId: resolvedYtId,
+                title: effectiveTitle,
+                thumbUrl: jsonLdThumb || ("https://i.ytimg.com/vi/" + resolvedYtId + "/hqdefault.jpg"),
+                badge: "YouTube"
+            };
+        }
+
+        var ogThumb = resolveAbsoluteUrl(getMetaContent(["meta[property='og:image:secure_url']", "meta[property='og:image']"]));
+        return {
+            watchUrl: cleanEmbedUrl,
+            videoId: "",
+            title: effectiveTitle,
+            thumbUrl: jsonLdThumb || ogThumb,
+            badge: "Video"
+        };
+    }
+
+    function parseSafeVideoEmbedFromUrl(absUrl, rawTitle, pageHints) {
+        if (!absUrl) return null;
+        var urlObj;
+        try {
+            urlObj = new URL(absUrl, location.href);
+        } catch (_e) {
+            return null;
+        }
+
+        var host = (urlObj.hostname || "").toLowerCase().replace(/^www\./, "");
+        var pathParts = (urlObj.pathname || "").split("/").filter(function (p) { return p.length > 0; });
+        var title = String(rawTitle || "").trim();
+
+        if (host === "youtu.be" ||
+            host === "youtube.com" ||
+            host === "m.youtube.com" ||
+            host === "music.youtube.com" ||
+            host === "youtube-nocookie.com"
+        ) {
+            var videoId = "";
+            if (host === "youtu.be") {
+                videoId = pathParts[0] || "";
+            } else if (pathParts.length >= 2 && /^(?:embed|shorts|live|v)$/i.test(pathParts[0])) {
+                if (!(/^embed$/i.test(pathParts[0]) && /^videoseries$/i.test(pathParts[1]))) {
+                    videoId = pathParts[1];
+                }
+            } else {
+                videoId = urlObj.searchParams.get("v") || "";
+            }
+
+            if (videoId && /^[A-Za-z0-9_-]{6,20}$/.test(videoId) && !/^videoseries$/i.test(videoId)) {
+                return {
+                    watchUrl: "https://www.youtube.com/watch?v=" + videoId,
+                    videoId: videoId,
+                    title: title || "YouTube Video",
+                    thumbUrl: "https://i.ytimg.com/vi/" + videoId + "/hqdefault.jpg",
+                    badge: "YouTube"
+                };
+            }
+
+            var listId = urlObj.searchParams.get("list") || "";
+            if (listId && /^[A-Za-z0-9_-]{4,64}$/.test(listId)) {
+                return {
+                    watchUrl: "https://www.youtube.com/playlist?list=" + listId,
+                    videoId: "",
+                    title: title || "YouTube Playlist",
+                    thumbUrl: "",
+                    badge: "YouTube"
+                };
+            }
+            return null;
+        }
+
+        if (host === "vimeo.com" || host === "player.vimeo.com") {
+            var vimeoMatch = (urlObj.pathname || "").match(/\/(?:video\/)?(\d+)/);
+            if (vimeoMatch) {
+                var vimeoId = vimeoMatch[1];
+                return {
+                    watchUrl: "https://vimeo.com/" + vimeoId,
+                    videoId: vimeoId,
+                    title: title || "Vimeo Video",
+                    thumbUrl: "",
+                    badge: "Vimeo"
+                };
+            }
+        }
+
+        if (host === "volume.vox-cdn.com" || (host.endsWith(".vox-cdn.com") && urlObj.pathname.indexOf("/embed/") !== -1)) {
+            return resolveVoxVolumeVideoInfo(urlObj, title, pageHints);
+        }
+
+        if (host === "dailymotion.com" || host === "geo.dailymotion.com") {
+            var dmMatch = (urlObj.pathname || "").match(/\/embed\/video\/([A-Za-z0-9]+)/);
+            var dmId = (dmMatch && dmMatch[1]) || urlObj.searchParams.get("video") || "";
+            if (dmId) {
+                return {
+                    watchUrl: "https://www.dailymotion.com/video/" + dmId,
+                    videoId: dmId,
+                    title: title || "Dailymotion Video",
+                    thumbUrl: "",
+                    badge: "Video"
+                };
+            }
+        }
+
+        if (host === "loom.com" && pathParts[0] === "embed" && pathParts[1]) {
+            return {
+                watchUrl: "https://www.loom.com/share/" + pathParts[1],
+                videoId: pathParts[1],
+                title: title || "Loom Video",
+                thumbUrl: "",
+                badge: "Video"
+            };
+        }
+
+        if (host === "streamable.com" && (pathParts[0] === "e" || pathParts[0] === "o") && pathParts[1]) {
+            return {
+                watchUrl: "https://streamable.com/" + pathParts[1],
+                videoId: pathParts[1],
+                title: title || "Streamable Video",
+                thumbUrl: "",
+                badge: "Video"
+            };
+        }
+
+        return null;
+    }
+
+    function extractVideoEmbedInfo(el, pageHints) {
+        if (!el || !el.tagName) return null;
+        var tag = el.tagName.toUpperCase();
+
+        if (tag === "LITE-YOUTUBE" || tag === "AMP-YOUTUBE") {
+            var ytId = (el.getAttribute("videoid") || el.getAttribute("data-videoid") || "").trim();
+            if (/^[A-Za-z0-9_-]{6,20}$/.test(ytId)) {
+                var ytTitle = (el.getAttribute("playlabel") || el.getAttribute("title") || "").trim() || "YouTube Video";
+                return {
+                    watchUrl: "https://www.youtube.com/watch?v=" + ytId,
+                    videoId: ytId,
+                    title: ytTitle,
+                    thumbUrl: "https://i.ytimg.com/vi/" + ytId + "/hqdefault.jpg",
+                    badge: "YouTube"
+                };
+            }
+            return null;
+        }
+
+        if (tag === "IFRAME") {
+            var attrs = ["src", "data-src", "data-lazy-src", "data-litespeed-src", "data-original", "data-src-defer"];
+            for (var i = 0; i < attrs.length; i++) {
+                var raw = (el.getAttribute(attrs[i]) || "").trim();
+                if (!raw || /^javascript:/i.test(raw) || /^data:/i.test(raw) || raw === "about:blank") continue;
+                var abs = resolveAbsoluteUrl(raw);
+                var info = parseSafeVideoEmbedFromUrl(abs, el.getAttribute("title") || el.getAttribute("aria-label") || "", pageHints);
+                if (info) return info;
+            }
+            return null;
+        }
+
+        if (tag === "VIDEO") {
+            var srcEl = el.querySelector("source[src]");
+            var rawVideoSrc = (el.getAttribute("src") || (srcEl && srcEl.getAttribute("src")) || "").trim();
+            var absVideoSrc = resolveAbsoluteUrl(rawVideoSrc);
+            if (!/^https?:\/\//i.test(absVideoSrc)) return null;
+            var poster = resolveAbsoluteUrl(el.getAttribute("poster") || "");
+            if (!/^https?:\/\//i.test(poster)) poster = "";
+            return {
+                watchUrl: absVideoSrc,
+                videoId: "",
+                title: (el.getAttribute("title") || "").trim() || "Embedded Video",
+                thumbUrl: poster,
+                badge: "VIDEO"
+            };
+        }
+
+        return null;
+    }
+
+    function resolveVideoProxyInsertionTarget(el) {
+        var anchor = el;
+        while (anchor && anchor.getRootNode && anchor.getRootNode().host) {
+            anchor = anchor.getRootNode().host;
+        }
+        for (var depth = 0; depth < 4; depth++) {
+            var parent = anchor && anchor.parentElement;
+            if (!parent || !parent.tagName) break;
+            var pTag = parent.tagName.toUpperCase();
+            if (pTag !== "P" && pTag !== "DIV" && pTag !== "FIGURE") break;
+            var clone = parent.cloneNode(true);
+            var embedded = clone.querySelectorAll("iframe, video, lite-youtube, amp-youtube");
+            for (var i = 0; i < embedded.length; i++) {
+                if (embedded[i].parentNode) embedded[i].parentNode.removeChild(embedded[i]);
+            }
+            var hasSiblingBlocks = !!clone.querySelector("p, h1, h2, h3, h4, h5, h6, ul, ol, table, pre, img");
+            var hasText = !!(clone.textContent || "").trim();
+            if (!hasSiblingBlocks && !hasText) {
+                anchor = parent;
+            } else {
+                break;
+            }
+        }
+        return anchor;
+    }
+
+    function isBeforeMainBodyParagraphs(el) {
+        if (!el || !el.compareDocumentPosition) return false;
+        if (el.closest && el.closest("[class*='lede' i], [class*='hero' i], header")) {
+            return true;
+        }
+        var scope = el.closest("article, main, [role='main']") || document.body;
+        if (!scope) return false;
+        var ps = scope.querySelectorAll("p");
+        for (var i = 0; i < ps.length; i++) {
+            var txt = (ps[i].textContent || "").trim();
+            if (txt.length >= 80 && !isNonContentEmbedContainer(ps[i])) {
+                return !!(el.compareDocumentPosition(ps[i]) & Node.DOCUMENT_POSITION_FOLLOWING);
+            }
+        }
+        return false;
+    }
+
+    function buildVideoProxyMarkerUrl(info) {
+        return info.watchUrl +
+            "#rs-video-embed=" +
+            encodeURIComponent(info.badge || "Video") +
+            "|" +
+            encodeURIComponent(info.videoId || "") +
+            "|" +
+            encodeURIComponent(info.thumbUrl || "") +
+            "|" +
+            encodeURIComponent(info.title || "");
+    }
+
+    // Defuddle strips <iframe> elements and strips links inside <figcaption> (defuddle#369);
+    // inject a low-link-density <p> placeholder that survives Defuddle and is restored right afterward.
+    function injectVideoEmbedProxies(pageHints) {
+        if (!document.body) return [];
+        var embeds = querySelectorAllDeep(document.body, "iframe, lite-youtube, amp-youtube, video", 60);
+        var inserted = [];
+        for (var i = 0; i < embeds.length; i++) {
+            var el = embeds[i];
+            if (isNonContentEmbedContainer(el) || isElementDisplayNone(el)) continue;
+            var info = extractVideoEmbedInfo(el, pageHints);
+            if (!info) continue;
+
+            var target = resolveVideoProxyInsertionTarget(el);
+            if (!target || !target.parentNode) continue;
+
+            var p = document.createElement("p");
+            p.setAttribute("data-rs-video-proxy", "1");
+            p.appendChild(document.createTextNode("Embedded " + (info.badge || "Video") + " player: "));
+            var strong = document.createElement("strong");
+            strong.textContent = info.title;
+            p.appendChild(strong);
+            p.appendChild(document.createTextNode(" — "));
+            var link = document.createElement("a");
+            link.setAttribute("href", buildVideoProxyMarkerUrl(info));
+            link.textContent = "Watch " + (info.badge || "Video");
+            p.appendChild(link);
+            p.appendChild(document.createTextNode(" (inline media card)."));
+
+            target.parentNode.insertBefore(p, target.nextSibling);
+            inserted.push({
+                node: p,
+                info: info,
+                inMainContent: !!(el.closest && el.closest("article, main, [role='main']")),
+                preferTop: isBeforeMainBodyParagraphs(el)
+            });
+        }
+        return inserted;
+    }
+
+    function removeVideoEmbedProxies(proxies) {
+        if (!proxies || proxies.length === 0) return;
+        for (var i = 0; i < proxies.length; i++) {
+            var p = proxies[i] && proxies[i].node;
+            if (p && p.parentNode) {
+                p.parentNode.removeChild(p);
+            }
+        }
+    }
+
+    function buildVideoCardHtml(info) {
+        var thumbHtml = info.thumbUrl
+            ? '<img class="rs-video-thumb" src="' + escapeHtml(info.thumbUrl) + '" alt="' + escapeHtml(info.title) + '">'
+            : "";
+        var videoIdAttr = info.videoId
+            ? (' data-video-id="' + escapeHtml(info.videoId) + '"')
+            : "";
+        return '<div class="rs-video-card" data-video-url="' + escapeHtml(info.watchUrl) +
+            '"' + videoIdAttr +
+            ' data-video-title="' + escapeHtml(info.title) + '">' +
+            thumbHtml +
+            '<div class="rs-video-card-meta"><span>' + escapeHtml(info.title) +
+            '</span><span class="rs-video-badge">' + escapeHtml(info.badge || "VIDEO") + '</span></div>' +
+            "</div>";
+    }
+
+    function restoreVideoEmbedProxies(rawContent, injectedProxies, pageHints) {
+        if (!rawContent) return rawContent;
+
+        var doc = getInertHtmlDocument();
+        var holder = doc.createElement("div");
+        holder.innerHTML = rawContent;
+
+        var seenWatchUrls = {};
+        if (rawContent.indexOf("#rs-video-embed=") !== -1) {
+            var proxyLinks = holder.querySelectorAll('a[href*="#rs-video-embed="]');
+            for (var i = 0; i < proxyLinks.length; i++) {
+                var link = proxyLinks[i];
+                var href = link.getAttribute("href") || "";
+                var markerIdx = href.indexOf("#rs-video-embed=");
+                if (markerIdx === -1) continue;
+
+                var watchUrl = href.slice(0, markerIdx);
+                var encodedMeta = href.slice(markerIdx + "#rs-video-embed=".length).split("|");
+                var badge = "Video";
+                var videoId = "";
+                var thumbUrl = "";
+                var encodedTitle = "";
+                try { badge = decodeURIComponent(encodedMeta[0] || "Video"); } catch (_e1) {}
+                try { videoId = decodeURIComponent(encodedMeta[1] || ""); } catch (_e2) {}
+                try { thumbUrl = decodeURIComponent(encodedMeta[2] || ""); } catch (_e3) {}
+                try { encodedTitle = decodeURIComponent(encodedMeta[3] || ""); } catch (_e4) {}
+
+                var container = link.closest("p, figure, div[data-rs-video-proxy]") || link;
+                if (seenWatchUrls[watchUrl]) {
+                    if (container.parentNode) {
+                        container.parentNode.removeChild(container);
+                    }
+                    continue;
+                }
+                seenWatchUrls[watchUrl] = true;
+
+                var title = encodedTitle || (badge + " Video");
+                var cardWrapper = doc.createElement("div");
+                cardWrapper.innerHTML = buildVideoCardHtml({
+                    watchUrl: watchUrl,
+                    videoId: videoId,
+                    title: title,
+                    thumbUrl: thumbUrl,
+                    badge: badge
+                });
+                var cardEl = cardWrapper.firstElementChild;
+                if (cardEl && container.parentNode) {
+                    container.parentNode.replaceChild(cardEl, container);
+                }
+            }
+
+            // Remove raw iframes left behind alongside our restored .rs-video-card to avoid duplicates.
+            var iframes = holder.querySelectorAll("iframe");
+            for (var f = 0; f < iframes.length; f++) {
+                var info = extractVideoEmbedInfo(iframes[f], pageHints);
+                if (info && seenWatchUrls[info.watchUrl] && iframes[f].parentNode) {
+                    iframes[f].parentNode.removeChild(iframes[f]);
+                }
+            }
+        }
+
+        // Safety net: if Defuddle cropped a lede/header container holding the main-content video, restore it cleanly.
+        if (injectedProxies && injectedProxies.length > 0 && !holder.querySelector(".rs-video-card")) {
+            var fallbackTarget = holder.querySelector("article") || holder;
+            for (var p = 0; p < injectedProxies.length; p++) {
+                var entry = injectedProxies[p];
+                if (!entry || !entry.info || !entry.inMainContent) continue;
+                if (seenWatchUrls[entry.info.watchUrl]) continue;
+                seenWatchUrls[entry.info.watchUrl] = true;
+                var appendHolder = doc.createElement("div");
+                appendHolder.innerHTML = buildVideoCardHtml(entry.info);
+                var card = appendHolder.firstElementChild;
+                if (card) {
+                    if (entry.preferTop && fallbackTarget.firstChild) {
+                        var firstEl = fallbackTarget.firstElementChild;
+                        if (firstEl && /^h1$/i.test(firstEl.tagName)) {
+                            fallbackTarget.insertBefore(card, firstEl.nextSibling);
+                        } else {
+                            fallbackTarget.insertBefore(card, fallbackTarget.firstChild);
+                        }
+                    } else {
+                        fallbackTarget.appendChild(card);
+                    }
+                }
+            }
+        }
+
+        return holder.innerHTML;
+    }
+
+    function resolvePreferredHeadlineTitle(parsedTitle, extractorType, siteName) {
+        if (extractorType === "reddit") return parsedTitle;
+        if (!document.body) return parsedTitle;
+
+        var scope = document.querySelector("article, main, [role='main']") || document.body;
+        var h1s = scope.querySelectorAll("h1");
+        var hostLower = (location.hostname || "").toLowerCase().replace(/^www\./, "");
+        var siteLower = (siteName || "").trim().toLowerCase();
+
+        var candidates = [];
+        for (var i = 0; i < h1s.length; i++) {
+            var h1 = h1s[i];
+            if (h1.closest("nav, footer, aside, [role='navigation'], [role='banner'], [role='contentinfo'], [role='dialog'], [aria-modal='true'], .comments, #comments, .rs-comments, [class*='related' i], [class*='sidebar' i], [class*='promo' i], [class*='newsletter' i], [class*='menu' i]")) {
+                continue;
+            }
+            var hdr = h1.closest("header");
+            if (hdr && !hdr.closest("article, main")) {
+                continue;
+            }
+            if (isElementDisplayNone(h1)) continue;
+
+            var txt = (h1.textContent || "").replace(/\s+/g, " ").trim();
+            if (txt.length < 4 || txt.length > 220) continue;
+            var txtLower = txt.toLowerCase();
+            if (txtLower === hostLower || (siteLower && txtLower === siteLower)) continue;
+            if (/^(?:sign in|log in|create an account|comments?|replies?|menu|search|subscribe|related|most popular|introduction|overview|summary|conclusion|background|references)$/i.test(txt)) {
+                continue;
+            }
+
+            var inLedeOrHeader = !!(h1.closest && h1.closest("[class*='lede' i], [class*='headline' i], [class*='article-header' i], [class*='post-header' i], [class*='entry-header' i], article header, [itemprop='headline']"));
+            candidates.push({ text: txt, inLedeOrHeader: inLedeOrHeader });
+        }
+
+        if (candidates.length === 0) return parsedTitle;
+        var picked = null;
+        for (var j = 0; j < candidates.length; j++) {
+            if (candidates[j].inLedeOrHeader) {
+                picked = candidates[j].text;
+                break;
+            }
+        }
+        if (!picked && candidates.length === 1) {
+            picked = candidates[0].text;
+        }
+        if (!picked) return parsedTitle;
+
+        var cjkCount = 0;
+        for (var c = 0; c < picked.length; c++) {
+            var code = picked.charCodeAt(c);
+            if ((code >= 0x3040 && code <= 0x30ff) || (code >= 0x4e00 && code <= 0x9fff) || (code >= 0xac00 && code <= 0xd7af)) {
+                cjkCount++;
+            }
+        }
+        var substantialHeadline = picked.length >= 16 || cjkCount >= 4;
+        if (!parsedTitle) return picked;
+
+        var parsedLower = parsedTitle.trim().toLowerCase();
+        var pickedLower = picked.toLowerCase();
+        if (parsedLower === pickedLower) return parsedTitle;
+
+        // If SEO meta title and visible <h1> diverge (e.g. The Verge's og:title vs article <h1>), prefer visible <h1>.
+        if (substantialHeadline && parsedLower.indexOf(pickedLower) === -1) {
+            return picked;
+        }
+        return parsedTitle;
+    }
+
     function isDangerousRevealButton(el, textLower) {
         if (!el) return true;
         if (el.tagName === "A") {
@@ -290,7 +947,7 @@
         if (isDangerousRevealButton(el, textLower)) return false;
 
         var patterns = [
-            /^(?:檢視成人內容|顯示成人內容|查看成人內容|顯示敏感內容|顯示劇透|顯示隱藏內容|展開全文|閱讀全文|閱讀更多|查看更多|顯示更多)$/,
+            /^(?:檢視成人內容|顯示成人內容|查看成人內容|顯示敏感內容|顯示劇透|顯示隱藏內容|展開全文|閱讀全文|閱讀更多|繼續閱讀|查看更多|顯示更多)$/,
             /^(?:view nsfw(?: content)?|view adult(?: content)?|view mature(?: content)?|show nsfw|show sensitive(?: content| media)?|view sensitive(?: content| media)?|show spoiler|view spoiler|reveal spoiler|click to reveal|click to view|show full article|read more|continue reading|show more|expand(?: content)?|view post)$/
         ];
         for (var i = 0; i < patterns.length; i++) {
@@ -629,11 +1286,58 @@
         return result;
     }
 
-    function detectPaywallSignals(extractedWordCount, jsonLd) {
-        var words = Number(extractedWordCount) || 0;
-        var bodyText = ((document.body && (document.body.innerText || document.body.textContent)) || "")
-            .replace(/\s+/g, " ")
-            .toLowerCase();
+    function extractNonChromeVisibleText() {
+        if (!document.body) return "";
+        try {
+            var parts = [];
+            var walker = document.createTreeWalker(
+                document.body,
+                NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT,
+                {
+                    acceptNode: function (node) {
+                        if (node.nodeType === 1) {
+                            var tag = (node.tagName || "").toUpperCase();
+                            if (tag === "SCRIPT" || tag === "STYLE" || tag === "NOSCRIPT" ||
+                                tag === "TEMPLATE" || tag === "NAV" || tag === "FOOTER" || tag === "HEADER") {
+                                return NodeFilter.FILTER_REJECT;
+                            }
+                            if (node.getAttribute) {
+                                var role = (node.getAttribute("role") || "").toLowerCase();
+                                if (role === "navigation" || role === "contentinfo") {
+                                    return NodeFilter.FILTER_REJECT;
+                                }
+                                var cls = " " + String(node.className || "").toLowerCase() + " ";
+                                if (node.id === "footer" || cls.indexOf(" site-footer ") !== -1) {
+                                    return NodeFilter.FILTER_REJECT;
+                                }
+                            }
+                            if (window.getComputedStyle) {
+                                var st = window.getComputedStyle(node);
+                                if (st && (st.display === "none" || st.visibility === "hidden")) {
+                                    return NodeFilter.FILTER_REJECT;
+                                }
+                            }
+                            return NodeFilter.FILTER_SKIP;
+                        }
+                        return node.nodeValue ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT;
+                    }
+                }
+            );
+            var cur;
+            while ((cur = walker.nextNode())) {
+                parts.push(cur.nodeValue);
+            }
+            return parts.join(" ").replace(/\s+/g, " ").toLowerCase();
+        } catch (_e) {
+            return ((document.body && (document.body.innerText || document.body.textContent)) || "")
+                .replace(/\s+/g, " ")
+                .toLowerCase();
+        }
+    }
+
+    function detectPaywallSignals(effectiveWords, jsonLd) {
+        var words = Number(effectiveWords) || 0;
+        var bodyText = extractNonChromeVisibleText();
 
         var gatePhrases = [
             "create an account to read the full story",
@@ -644,21 +1348,65 @@
             "this post is for subscribers only",
             "subscribe to continue reading",
             "sign in to continue reading",
-            "log in to continue reading"
+            "log in to continue reading",
+            "already a member? sign in",
+            "already a subscriber? log in",
+            "已是會員？登入",
+            "已是會員？ 登入",
+            "已是會員?登入",
+            "已是會員? 登入",
+            "已是會員，立即登入",
+            "已是付費會員？",
+            "點擊訂閱，暢讀全站",
+            "點擊訂閱，解鎖全文",
+            "成爲會員，閱讀全文",
+            "成為會員，閱讀全文",
+            "成為會員閱讀全文",
+            "成爲會員閱讀全文",
+            "立即解鎖全文",
+            "解鎖閱讀全文",
+            "付費解鎖全文",
+            "成為付費會員",
+            "成爲付費會員",
+            "登入以繼續閱讀",
+            "登錄以繼續閱讀",
+            "註冊以繼續閱讀",
+            "訂閱以繼續閱讀",
+            "成為會員以繼續閱讀",
+            "成爲會員以繼續閱讀",
+            "請登入後閱讀全文",
+            "請先登入閱讀全文",
+            "免費註冊即可閱讀全文",
+            "本文為會員專享",
+            "僅限付費會員閱讀",
+            "僅限會員閱讀",
+            "已是会员？登录",
+            "已是会员？ 登录",
+            "成为会员，阅读全文",
+            "立即解锁全文",
+            "付费解锁全文",
+            "登录以继续阅读",
+            "订阅以继续阅读",
+            "注册以继续阅读",
+            "仅限付费会员"
         ];
         for (var i = 0; i < gatePhrases.length; i++) {
-            if (bodyText.indexOf(gatePhrases[i]) !== -1 && words < 800) {
+            if (bodyText.indexOf(gatePhrases[i]) !== -1 && words < 950) {
                 return true;
             }
         }
 
-        if (document.querySelector('[data-testid="paywall"], .paywall-gate, #paywall-container, .paywall, .meteredContent') && words < 650) {
+        if (document.querySelector(
+            '[data-testid="paywall"], [data-paywall], .paywall-gate, .paywall-box, ' +
+            '#paywall-container, .paywall, .meteredContent, .gh-post-upgrade-cta, ' +
+            '.membership-gate, .subscription-wall'
+        ) && words < 750) {
             return true;
         }
 
         var contentTier = getMetaContent(["meta[property='article:content_tier']"]).toLowerCase();
         var isLockedMeta = (jsonLd && jsonLd.isAccessibleForFree === false) || contentTier === "locked";
-        if (isLockedMeta && words < 650) {
+        if (isLockedMeta && words < 750) {
             return true;
         }
 
@@ -701,11 +1449,14 @@
 
         var lowerUrl = (location.href || "").toLowerCase();
         var lowerPath = (location.pathname || "").toLowerCase();
+        // Prefer innerText so hidden display:none age/cookie modals do not pollute gate detection
         var bodyText = ((document.body && (document.body.innerText || document.body.textContent)) || "")
             .replace(/\s+/g, " ")
             .trim()
             .toLowerCase();
         var words = Number(extractedWordCount) || 0;
+        var extractedPlain = htmlToPlainText(extractedHtml || "");
+        var effectiveWords = extractedPlain ? countEffectiveWords(extractedPlain) : words;
 
         if (/\/(?:over18|age-gate|age_gate|age-verification|verify-age)\b/.test(lowerPath)) {
             return {
@@ -733,6 +1484,9 @@
             }
         }
 
+        var sanitizedAgeText = bodyText
+            .replace(/未滿十八歲禁止飲酒/g, "")
+            .replace(/未滿18歲禁止飲酒/g, "");
         var ageGatePhrases = [
             "are you over 18",
             "are you 18 or older",
@@ -753,7 +1507,7 @@
         ];
         var matchedAgePhrase = false;
         for (var i = 0; i < ageGatePhrases.length; i++) {
-            if (bodyText.indexOf(ageGatePhrases[i]) !== -1) {
+            if (sanitizedAgeText.indexOf(ageGatePhrases[i]) !== -1) {
                 matchedAgePhrase = true;
                 break;
             }
@@ -793,7 +1547,7 @@
             }
         }
 
-        if (detectPaywallSignals(words, jsonLd)) {
+        if (detectPaywallSignals(effectiveWords, jsonLd)) {
             return {
                 blocked: true,
                 reason: "PAYWALL_OR_LOGIN",
@@ -972,6 +1726,25 @@
             img.getAttribute("src") ||
             ""
         );
+    }
+
+    function extractDomHeroCoverImage() {
+        var heroSelectors = [
+            "img.crayons-article__cover__image",
+            ".crayons-article__cover img",
+            "article header img[class*='cover' i]",
+            "[data-testid='cover-image'] img"
+        ];
+        for (var i = 0; i < heroSelectors.length; i++) {
+            var el = document.querySelector(heroSelectors[i]);
+            if (el) {
+                var src = pickBestImageSrcFromElement(el);
+                if (src && /^https?:\/\//i.test(src)) {
+                    return src;
+                }
+            }
+        }
+        return "";
     }
 
     function extractRedditMediaInfo(fallbackTitle) {
@@ -1160,18 +1933,21 @@
 
     function extractNumberedForumThread() {
         if (!document.body) return null;
+        var host = (location.hostname || "").toLowerCase();
+        var isLihkg = /(?:^|\.)lihkg\.com$/i.test(host);
+
         var rawEls = document.body.querySelectorAll("span, div, a, small, strong, b");
         var rawFloorMatches = [];
         for (var i = 0; i < rawEls.length; i++) {
             var el = rawEls[i];
-            if (el.closest("pre, code, script, style, noscript, nav, header, footer")) continue;
+            if (el.closest("pre, code, script, style, noscript, nav, header, footer, aside, [role='navigation'], [role='banner'], [role='contentinfo']")) continue;
             if (el.querySelector("p, blockquote, img, video, table, ul, ol, h1, h2, h3, div")) continue;
             var txt = (el.textContent || "").replace(/\s+/g, "").trim();
             var m = txt.match(/^#([1-9]\d{0,3})$/);
             if (!m) continue;
             rawFloorMatches.push({ el: el, num: parseInt(m[1], 10) });
         }
-        if (rawFloorMatches.length < 2) return null;
+        if (rawFloorMatches.length === 0) return null;
 
         var leafMatches = rawFloorMatches.filter(function (entry) {
             for (var j = 0; j < rawFloorMatches.length; j++) {
@@ -1191,7 +1967,7 @@
                 uniqueMarkers.push(item);
             }
         }
-        if (uniqueMarkers.length < 2) return null;
+        if (uniqueMarkers.length === 0) return null;
 
         var consecutiveCount = 0;
         for (var c = 0; c < uniqueMarkers.length - 1; c++) {
@@ -1200,7 +1976,8 @@
             }
         }
         var looksLikeThread = (uniqueMarkers.length >= 3 && consecutiveCount >= 2) ||
-            (uniqueMarkers.length === 2 && uniqueMarkers[0].num === 1 && uniqueMarkers[1].num === 2);
+            (uniqueMarkers.length === 2 && uniqueMarkers[0].num === 1 && uniqueMarkers[1].num === 2) ||
+            (isLihkg && location.pathname.indexOf("/thread/") !== -1 && uniqueMarkers.length >= 1 && uniqueMarkers[0].num === 1);
         if (!looksLikeThread) return null;
 
         function countMarkersInside(node) {
@@ -1211,6 +1988,23 @@
             return cnt;
         }
 
+        function looksLikeThreadListSidebar(node) {
+            if (!node || !node.querySelectorAll) return false;
+            var threadLinks = node.querySelectorAll('a[href*="/thread/"]');
+            return threadLinks.length >= 4 && countMarkersInside(node) === 0;
+        }
+
+        function hasThreadListSibling(node, parent) {
+            if (!parent || !parent.children) return false;
+            var children = parent.children;
+            for (var s = 0; s < children.length; s++) {
+                if (children[s] !== node && looksLikeThreadListSidebar(children[s])) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
         var floors = [];
         var seenCards = [];
         for (var f = 0; f < uniqueMarkers.length && floors.length < MAX_FORUM_FLOORS; f++) {
@@ -1218,7 +2012,9 @@
             var card = marker.el;
             while (card.parentElement &&
             card.parentElement !== document.body &&
-            countMarkersInside(card.parentElement) === 1) {
+            countMarkersInside(card.parentElement) === 1 &&
+            !hasThreadListSibling(card, card.parentElement) &&
+            !(card.parentElement.querySelectorAll && card.parentElement.querySelectorAll('a[href*="/thread/"]').length >= 6)) {
                 card = card.parentElement;
             }
             if (card === marker.el || seenCards.indexOf(card) !== -1) continue;
@@ -1255,16 +2051,36 @@
                 if (stripEls[s].parentNode) stripEls[s].parentNode.removeChild(stripEls[s]);
             }
 
+            var firstContentImg = "";
             var imgs = clone.querySelectorAll("img");
             for (var im = 0; im < imgs.length; im++) {
                 var img = imgs[im];
-                var src = resolveAbsoluteUrl(img.getAttribute("data-src") || img.getAttribute("src") || "");
+                var cls = (img.className || "").toLowerCase();
+                var src = resolveAbsoluteUrl(
+                    img.getAttribute("data-src") ||
+                    img.getAttribute("data-original") ||
+                    img.getAttribute("src") ||
+                    ""
+                );
                 var w = parseInt(img.getAttribute("width") || "", 10);
                 var h = parseInt(img.getAttribute("height") || "", 10);
+                var isForumEmoji = cls.indexOf("hkgmoji") !== -1 || /\/assets\/faces\//i.test(src);
+                if (isForumEmoji) {
+                    var emojiAlt = (img.getAttribute("alt") || "").trim();
+                    if (emojiAlt && img.parentNode) {
+                        img.parentNode.replaceChild(document.createTextNode(emojiAlt), img);
+                    } else if (img.parentNode) {
+                        img.parentNode.removeChild(img);
+                    }
+                    continue;
+                }
                 if (!src || src.startsWith("data:") || (w > 0 && w <= 8) || (h > 0 && h <= 8)) {
                     if (img.parentNode) img.parentNode.removeChild(img);
                 } else {
                     img.setAttribute("src", src);
+                    if (!firstContentImg && !/avatar|icon|logo|badge/i.test(src)) {
+                        firstContentImg = src;
+                    }
                 }
             }
 
@@ -1293,14 +2109,33 @@
                 author: author,
                 date: dateText,
                 bodyHtml: cleanBodyHtml,
-                plainText: bodyPlain
+                plainText: bodyPlain,
+                firstImageUrl: firstContentImg
             });
         }
 
-        if (floors.length < 2) return null;
+        if (floors.length === 0) return null;
+        if (!isLihkg && floors.length < 2) return null;
 
-        var rawTitle = getMetaContent(["meta[property='og:title']", "h1"]) || (document.title || "").trim();
-        var cleanTitle = rawTitle.replace(/\s*[|\-–—]\s*LIHKG(?:\s*討論區)?\s*$/i, "").trim() || rawTitle;
+        var docTitleClean = (document.title || "").replace(/\s*[|\-–—]\s*LIHKG(?:\s*討論區)?\s*$/i, "").trim();
+        var ogTitleClean = getMetaContent(["meta[property='og:title']"])
+            .replace(/\s*[|\-–—]\s*LIHKG(?:\s*討論區)?\s*$/i, "")
+            .trim();
+        var headingTitle = "";
+        var hEls = document.querySelectorAll("h1, h2");
+        for (var hi = 0; hi < hEls.length; hi++) {
+            if (isInsideChromeNoise(hEls[hi]) || looksLikeThreadListSidebar(hEls[hi].parentElement)) continue;
+            var ht = (hEls[hi].textContent || "").replace(/\s+/g, " ").trim();
+            if (ht && !/^(?:LIHKG|LIHKG\s*討論區|吹水台|財經台|時事台|熱門|最新)$/i.test(ht)) {
+                headingTitle = ht;
+                break;
+            }
+        }
+        var cleanTitle = headingTitle ||
+            (docTitleClean && !/^LIHKG(?:\s*討論區)?$/i.test(docTitleClean) ? docTitleClean : "") ||
+            (ogTitleClean && !/^LIHKG(?:\s*討論區)?$/i.test(ogTitleClean) ? ogTitleClean : "") ||
+            docTitleClean ||
+            ogTitleClean;
 
         var op = floors[0];
         var parts = ['<article data-rs-extracted="1">'];
@@ -1333,10 +2168,16 @@
         var plainText = htmlToPlainText(html);
         var wordCount = countWords(plainText);
 
+        var metaImage = resolveAbsoluteUrl(getMetaContent(["meta[property='og:image']", "meta[name='twitter:image']"]));
+        if (/lihkg\.com\/assets\//i.test(metaImage)) {
+            metaImage = "";
+        }
+
         return {
             title: cleanTitle,
             author: op.author || "",
-            description: (op.plainText || plainText).slice(0, 180),
+            description: stripMarkupFromText(op.plainText || plainText).slice(0, 180),
+            image: metaImage || op.firstImageUrl || "",
             html: html,
             plainText: plainText,
             wordCount: wordCount,
@@ -1364,7 +2205,7 @@
                 title: forum.title || (document.title || "").trim(),
                 author: forum.author || jsonLd.author,
                 description: forum.description,
-                image: resolveAbsoluteUrl(getMetaContent(["meta[property='og:image']", "meta[name='twitter:image']"])),
+                image: forum.image || resolveAbsoluteUrl(getMetaContent(["meta[property='og:image']", "meta[name='twitter:image']"])),
                 siteName: extractMetaSiteName(jsonLd),
                 published: jsonLd.published,
                 domain: (location.hostname || "").replace(/^www\./i, ""),
@@ -1380,11 +2221,12 @@
             };
         }
 
-        var title = getMetaContent([
+        var siteName = extractMetaSiteName(jsonLd);
+        var metaTitle = getMetaContent([
             "meta[property='og:title']",
-            "meta[name='twitter:title']",
-            "h1"
+            "meta[name='twitter:title']"
         ]) || jsonLd.title || (document.title || "").trim();
+        var title = resolvePreferredHeadlineTitle(metaTitle, "", siteName) || metaTitle;
 
         var author = getMetaContent([
             "meta[name='author']",
@@ -1392,17 +2234,21 @@
             "a[rel='author']"
         ]) || jsonLd.author;
 
-        var description = getMetaContent([
+        var description = stripMarkupFromText(getMetaContent([
             "meta[property='og:description']",
             "meta[name='description']"
-        ]);
-
-        var image = resolveAbsoluteUrl(getMetaContent([
-            "meta[property='og:image']",
-            "meta[name='twitter:image']"
         ]));
 
-        var siteName = extractMetaSiteName(jsonLd);
+        var image = resolveAbsoluteUrl(
+            extractDomHeroCoverImage() ||
+            getMetaContent([
+                "meta[property='og:image:secure_url']",
+                "meta[property='og:image']",
+                "meta[name='twitter:image:src']",
+                "meta[name='twitter:image']"
+            ])
+        );
+
         var published = getMetaContent([
             "meta[property='article:published_time']",
             "time[datetime]"
@@ -1425,6 +2271,10 @@
             textContent = htmlToPlainText(rawBodyHtml);
             wordCount = countWords(textContent);
             fallbackContent = rawBodyHtml ? ('<article data-rs-extracted="1">' + rawBodyHtml + "</article>") : "";
+        }
+
+        if (!description && textContent) {
+            description = textContent.slice(0, 180);
         }
 
         var gate = detectHardGateSignals(wordCount, fallbackContent, "", jsonLd);
@@ -1450,25 +2300,34 @@
     }
 
     function runDefuddleWithShadowFallback() {
-        var parsed = new window.Defuddle(document, { url: location.href }).parse();
-        var rawText = htmlToPlainText(parsed.content || "");
-        var words = Number(parsed.wordCount) || countWords(rawText);
-        if (words < 40 && !parsed.extractorType && hasAnyShadowRoots(document.body)) {
-            var flatDoc = createFlattenedDocumentClone();
-            if (flatDoc) {
-                try {
-                    var flatParsed = new window.Defuddle(flatDoc, { url: location.href }).parse();
-                    var flatText = htmlToPlainText(flatParsed.content || "");
-                    var flatWords = Number(flatParsed.wordCount) || countWords(flatText);
-                    if (flatWords > words || (!parsed.content && flatParsed.content)) {
-                        return flatParsed;
+        var pageHints = collectPageVideoHints();
+        var videoProxies = injectVideoEmbedProxies(pageHints);
+        try {
+            var parsed = new window.Defuddle(document, { url: location.href }).parse();
+            var rawText = htmlToPlainText(parsed.content || "");
+            var words = Number(parsed.wordCount) || countWords(rawText);
+            if (words < 40 && !parsed.extractorType && hasAnyShadowRoots(document.body)) {
+                var flatDoc = createFlattenedDocumentClone();
+                if (flatDoc) {
+                    try {
+                        var flatParsed = new window.Defuddle(flatDoc, { url: location.href }).parse();
+                        var flatText = htmlToPlainText(flatParsed.content || "");
+                        var flatWords = Number(flatParsed.wordCount) || countWords(flatText);
+                        if (flatWords > words || (!parsed.content && flatParsed.content)) {
+                            parsed = flatParsed;
+                        }
+                    } catch (_e) {
+                        // Keep original parsed result
                     }
-                } catch (_e) {
-                    // Keep original parsed result
                 }
             }
+            if (parsed && parsed.content) {
+                parsed.content = restoreVideoEmbedProxies(parsed.content, videoProxies, pageHints);
+            }
+            return parsed;
+        } finally {
+            removeVideoEmbedProxies(videoProxies);
         }
-        return parsed;
     }
 
     window.extractReadSiloArticle = function () {
@@ -1490,18 +2349,23 @@
                 if (!extractorType) {
                     var defuddleText = htmlToPlainText(rawContent);
                     var defuddleWords = Number(parsed.wordCount) || countWords(defuddleText);
+                    var host = (location.hostname || "").toLowerCase();
+                    var isKnownForumHost = /(?:^|\.)(?:lihkg\.com|hkgolden\.com|discuss\.com\.hk|uwants\.com)$/i.test(host);
                     var forum = extractNumberedForumThread();
                     var defuddleHasFloors = /#1\b[\s\S]*#2\b/.test(defuddleText);
-                    if (forum && (defuddleWords < 120 || !defuddleHasFloors)) {
+                    var defuddlePollutedByThreadList = defuddleText.indexOf("分鐘前") !== -1 &&
+                        (defuddleText.match(/\b\d+\s*頁\b/g) || []).length >= 2;
+                    if (forum && (isKnownForumHost || defuddlePollutedByThreadList || defuddleWords < 120 || !defuddleHasFloors)) {
                         var forumGate = detectHardGateSignals(forum.wordCount, forum.html, "forum", jsonLd);
+                        var forumDesc = stripMarkupFromText(forum.description || parsed.description || "");
                         return JSON.stringify({
                             title: forum.title || parsed.title || document.title || "",
                             author: forum.author || parsed.author || jsonLd.author || "",
-                            description: forum.description || parsed.description || "",
-                            image: resolveAbsoluteUrl(parsed.image || getMetaContent(["meta[property='og:image']", "meta[name='twitter:image']"])),
+                            description: forumDesc,
+                            image: forum.image || resolveAbsoluteUrl(parsed.image || getMetaContent(["meta[property='og:image']", "meta[name='twitter:image']"])),
                             siteName: (parsed.site || "").trim() || extractMetaSiteName(jsonLd),
                             published: parsed.published || jsonLd.published || "",
-                            domain: parsed.domain || (location.hostname || "").replace(/^www\./i, ""),
+                            domain: parsed.domain || host.replace(/^www\./i, ""),
                             content: forum.html,
                             textContent: forum.plainText,
                             wordCount: forum.wordCount,
@@ -1514,8 +2378,8 @@
                         });
                     }
 
-                    var defuddleHasImg = /<img\b/i.test(rawContent);
-                    if (defuddleWords < 40 && !defuddleHasImg) {
+                    var defuddleHasMedia = /<(?:img|div)\b[^>]*(?:src=|class\s*=\s*["'][^"']*rs-video-card)/i.test(rawContent);
+                    if (defuddleWords < 40 && !defuddleHasMedia) {
                         var gallery = extractImageGalleryFallback(parsed.title || document.title || "");
                         if (gallery) {
                             rawContent = gallery.html;
@@ -1533,9 +2397,15 @@
                 var plainText = htmlToPlainText(rawContent);
                 var wordCount = Math.max(Number(parsed.wordCount) || 0, countWords(plainText));
                 var coverImage = resolveAbsoluteUrl(
+                    extractDomHeroCoverImage() ||
                     parsed.image ||
                     fallbackCover ||
-                    getMetaContent(["meta[property='og:image']", "meta[name='twitter:image']"])
+                    getMetaContent([
+                        "meta[property='og:image:secure_url']",
+                        "meta[property='og:image']",
+                        "meta[name='twitter:image:src']",
+                        "meta[name='twitter:image']"
+                    ])
                 );
 
                 var siteName = (parsed.site || "").trim();
@@ -1552,12 +2422,19 @@
                     siteName = extractMetaSiteName(jsonLd);
                 }
 
+                var rawTitle = parsed.title || document.title || "";
+                var resolvedTitle = resolvePreferredHeadlineTitle(rawTitle, extractorType, siteName) || rawTitle;
+
+                var cleanDescription = stripMarkupFromText(
+                    parsed.description || getMetaContent(["meta[property='og:description']", "meta[name='description']"])
+                ) || plainText.slice(0, 180);
+
                 var gate = detectHardGateSignals(wordCount, wrappedContent, extractorType, jsonLd);
 
                 return JSON.stringify({
-                    title: parsed.title || document.title || "",
+                    title: resolvedTitle,
                     author: author,
-                    description: parsed.description || getMetaContent(["meta[property='og:description']", "meta[name='description']"]),
+                    description: cleanDescription,
                     image: coverImage,
                     siteName: siteName,
                     published: parsed.published || jsonLd.published || "",
