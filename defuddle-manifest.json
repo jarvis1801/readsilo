@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "versionCode": 1,
+  "version": "0.19.13-1",
+  "upstreamDefuddleVersion": "0.19.13",
+  "minBridgeVersion": 1,
+  "sha256": "a49bbebd0806d5cdc6e0edc4ba9d2c1cfe8cc52f7d46eccd22a11c684ca83f62",
+  "sizeBytes": 425150,
+  "url": "https://raw.githubusercontent.com/jarvis1801/readsilo/main/defuddle.js?v=1",
+  "publishedAt": "2026-11-26T04:07:03.847Z"
+}
